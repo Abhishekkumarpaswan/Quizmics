@@ -34,25 +34,55 @@ public class ClientHandler extends Thread {
                 String[] request = inputLine.split(":");
                 switch (request[0]) {
                     case "LOGIN":
-                        handleLogin(request[1], request[2]);
+                        try {
+                            handleLogin(request[1], request[2]);
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to process login.");
+                            e.printStackTrace();
+                        }
                         break;
                     case "CREATE_QUIZ":
-                        handleCreateQuiz(request[1], request[2]);
+                        try {
+                            handleCreateQuiz(request[1], request[2]);
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to create quiz.");
+                            e.printStackTrace();
+                        }
                         break;
                     case "GET_QUIZZES":
-                        handleGetQuizzes();
+                        try {
+                            handleGetQuizzes();
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to fetch quizzes.");
+                            e.printStackTrace();
+                        }
                         break;
                     case "CREATE_ROOM":
-                        handleCreateRoom(request[1], request[2]);
+                        try {
+                            handleCreateRoom(request[1], request[2]);
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to create room.");
+                            e.printStackTrace();
+                        }
                         break;
                     case "JOIN_ROOM":
                         handleJoinRoom(request[1], request[2]);
                         break;
                     case "START_QUIZ":
-                        handleStartQuiz(request[1]);
+                        try {
+                            handleStartQuiz(request[1]);
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to start quiz.");
+                            e.printStackTrace();
+                        }
                         break;
                     case "SUBMIT_ANSWER":
-                        handleSubmitAnswer(request[1], request[2], request[3]);
+                        try {
+                            handleSubmitAnswer(request[1], request[2], request[3]);
+                        } catch (SQLException e) {
+                            out.println("ERROR: Failed to submit answer.");
+                            e.printStackTrace();
+                        }
                         break;
                 }
             }
@@ -77,11 +107,14 @@ public class ClientHandler extends Thread {
     }
 
     private void handleCreateQuiz(String quizName, String userId) throws SQLException {
+        // Ensure userId is a valid integer
+        int createdBy = Integer.parseInt(userId);
+
         // Create a new quiz
         String query = "INSERT INTO quizzes (quiz_name, created_by) VALUES (?, ?)";
-        PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+        PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
         stmt.setString(1, quizName);
-        stmt.setInt(2, Integer.parseInt(userId));
+        stmt.setInt(2, createdBy);
         stmt.executeUpdate();
 
         ResultSet rs = stmt.getGeneratedKeys();
@@ -106,7 +139,7 @@ public class ClientHandler extends Thread {
     private void handleCreateRoom(String roomName, String quizId) throws SQLException {
         // Create a new room
         String query = "INSERT INTO rooms (room_name, quiz_id, created_by) VALUES (?, ?, ?)";
-        PreparedStatement stmt = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+        PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
         stmt.setString(1, roomName);
         stmt.setInt(2, Integer.parseInt(quizId));
         stmt.setInt(3, userId);
@@ -149,3 +182,23 @@ public class ClientHandler extends Thread {
                     .append(rs.getString("correct_answer")).append(";");
         }
         RoomManager roomManager = QuizServer.getRoomManager(roomId);
+        if (roomManager != null) {
+            roomManager.broadcast("QUESTIONS:" + questions.toString());
+        }
+    }
+
+    private void handleSubmitAnswer(String userId, String quizId, String score) throws SQLException {
+        // Save the quiz result
+        String query = "INSERT INTO results (user_id, quiz_id, score) VALUES (?, ?, ?)";
+        PreparedStatement stmt = connection.prepareStatement(query);
+        stmt.setInt(1, Integer.parseInt(userId));
+        stmt.setInt(2, Integer.parseInt(quizId));
+        stmt.setInt(3, Integer.parseInt(score));
+        stmt.executeUpdate();
+        out.println("RESULT_SAVED");
+    }
+
+    public void sendMessage(String message) {
+        out.println(message);
+    }
+}

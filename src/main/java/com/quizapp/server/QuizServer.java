@@ -17,7 +17,7 @@ public class QuizServer {
     public static void main(String[] args) {
         try {
             // Connect to the database
-            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/quiz_db", "root", "password");
+            connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/quiz_db", "root", "ABHIsql@1");
 
             // Start the server
             ServerSocket serverSocket = new ServerSocket(PORT);
@@ -33,14 +33,17 @@ public class QuizServer {
         }
     }
 
+    // Method to get a RoomManager by room ID
     public static RoomManager getRoomManager(int roomId) {
         return rooms.get(roomId);
     }
 
+    // Method to add a RoomManager to the rooms map
     public static void addRoomManager(int roomId, RoomManager roomManager) {
         rooms.put(roomId, roomManager);
     }
 
+    // Method to remove a RoomManager from the rooms map
     public static void removeRoomManager(int roomId) {
         rooms.remove(roomId);
     }
