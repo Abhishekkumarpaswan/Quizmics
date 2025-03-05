@@ -1,3 +1,5 @@
+-- SQL scripts for database setup
+
 -- Create the database
 CREATE DATABASE IF NOT EXISTS quiz_db;
 USE quiz_db;
