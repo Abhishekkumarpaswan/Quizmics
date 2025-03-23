@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class QuizServer {
+
     private static final int PORT = 12345; // Port for the server
     private static Connection connection; // Database connection
     private static final Map<Integer, RoomManager> rooms = new HashMap<>(); // Room ID -> RoomManager
@@ -32,19 +33,20 @@ public class QuizServer {
      * Starts the server and listens for incoming client connections.
      */
     private static void startServer() {
-        try {ServerSocket serverSocket = new ServerSocket(1234);
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) { // Changed to use the constant PORT
             System.out.println("Server started on port " + PORT);
-
             while (true) {
                 // Accept incoming client connections
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected: " + clientSocket);
 
                 // Create a new thread to handle the client
-                new ClientHandler(clientSocket, connection).start();
+                ClientHandler clientHandler = new ClientHandler(clientSocket, connection);
+                clientHandler.start();
             }
         } catch (IOException e) {
             System.err.println("Server error: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -61,7 +63,7 @@ public class QuizServer {
     /**
      * Adds a new RoomManager to the rooms map.
      *
-     * @param roomId      The ID of the room.
+     * @param roomId The ID of the room.
      * @param roomManager The RoomManager instance for the room.
      */
     public static void addRoomManager(int roomId, RoomManager roomManager) {

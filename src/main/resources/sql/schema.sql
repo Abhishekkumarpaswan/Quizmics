@@ -35,9 +35,9 @@ CREATE TABLE IF NOT EXISTS questions (
 -- Rooms table
 CREATE TABLE IF NOT EXISTS rooms (
                                      room_id INT AUTO_INCREMENT PRIMARY KEY,
-                                     room_name VARCHAR(100) NOT NULL,
-    quiz_id INT,
-    created_by INT,
+                                     room_name VARCHAR(255) NOT NULL,
+    quiz_id INT NOT NULL,
+    created_by INT NOT NULL,
     FOREIGN KEY (quiz_id) REFERENCES quizzes(quiz_id),
     FOREIGN KEY (created_by) REFERENCES users(user_id)
     );
