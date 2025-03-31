@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,19 +14,53 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class ClientHandler extends Thread {
+    private static final String LOGIN_PREFIX = "LOGIN:";
+    private static final String LOGIN_SUCCESS_PREFIX = "LOGIN_SUCCESS:";
+    private static final String LOGIN_FAILED_PREFIX = "LOGIN_FAILED";
+    private static final String CREATE_QUIZ_PREFIX = "CREATE_QUIZ:";
+    private static final String QUIZ_CREATED_PREFIX = "QUIZ_CREATED:";
+    private static final String CREATE_ROOM_PREFIX = "CREATE_ROOM:";
+    private static final String ROOM_CREATED_PREFIX = "ROOM_CREATED:";
+    private static final String GET_ACTIVE_ROOMS_PREFIX = "GET_ACTIVE_ROOMS";
+    private static final String ACTIVE_ROOMS_PREFIX = "ACTIVE_ROOMS:";
+    private static final String JOIN_ROOM_PREFIX = "JOIN_ROOM:";
+    private static final String JOIN_ROOM_SUCCESS_PREFIX = "JOIN_ROOM:SUCCESS:";
+    private static final String GET_QUIZ_DATA_PREFIX = "GET_QUIZ_DATA:";
+    private static final String QUIZ_DATA_PREFIX = "QUIZ_DATA:";
+    private static final String QUIZ_DATA_SUCCESS_PREFIX = "QUIZ_DATA:SUCCESS:";
+    private static final String QUIZ_DATA_FAILED_PREFIX = "QUIZ_DATA:FAILED";
+    private static final String GET_ROOM_INFO_PREFIX = "GET_ROOM_INFO:";
+    private static final String ROOM_INFO_PREFIX = "ROOM_INFO:";
+    private static final String QUIT_PREFIX = "QUIT";
+    private static final String GET_PLAYER_LIST_PREFIX = "GET_PLAYER_LIST:";
+    private static final String LOGOUT_PREFIX = "LOGOUT:";
+    private static final String PLAYER_LIST_PREFIX = "PLAYER_LIST:";
+    private static final String LEAVE_ROOM_PREFIX = "LEAVE_ROOM:";
 
     private Socket clientSocket;
     private Connection connection;
     private PrintWriter out;
     private BufferedReader in;
     private int userId; // User ID of the connected client
-    private int roomId; // Room ID of the client's current room
-
+    private int roomId = -1; // Room ID of the client's current room
+    private String username;
     private static final Logger logger = Logger.getLogger(ClientHandler.class.getName());
 
     public ClientHandler(Socket socket, Connection connection) {
         this.clientSocket = socket; // Initialize client socket
         this.connection = connection; // Initialize database connection
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void sendMessage(String message) {
+        out.println(message);
     }
 
     @Override
@@ -37,285 +72,239 @@ public class ClientHandler extends Thread {
 
             while ((inputLine = in.readLine()) != null) { // Read incoming messages from client
                 // Handle client requests
-                String[] request = inputLine.split(":"); // Split request into parts based on ':'
                 logger.info("Received request: " + inputLine);
 
-                switch (request[0]) { // Determine action based on request type
-                    case "LOGIN":
-                        handleLogin(request[1], request[2]); // Handle login request
-                        break;
-                    case "CREATE_QUIZ":
-                        if (request.length == 4) { // Ensure all required arguments are provided
-                            handleCreateQuiz(request[1], request[2], request[3]); // Handle create quiz request
-                        } else {
-                            out.println("ERROR: Insufficient arguments for CREATE_QUIZ."); // Error message for insufficient arguments
-                        }
-                        break;
-                    case "GET_QUIZZES":
-                        handleGetQuizzes(); // Handle get quizzes request
-                        break;
-                    case "CREATE_ROOM":
-                        if (request.length == 4) { // Ensure all required arguments are provided
-                            handleCreateRoom(request[1], request[2], request[3]); // Handle create room request
-                        } else {
-                            out.println("ERROR: Insufficient arguments for CREATE_ROOM."); // Error message for insufficient arguments
-                        }
-                        break;
-                    case "JOIN_ROOM":
-                        handleJoinRoom(request[1], request[2]); // Handle join room request
-                        break;
-                    case "START_QUIZ":
-                        handleStartQuiz(request[1]); // Handle start quiz request
-                        break;
-                    case "SUBMIT_ANSWER":
-                        handleSubmitAnswer(request[1], request[2], request[3]); // Handle submit answer request
-                        break;
-                    case "GET_QUIZ_ID": // New case to handle request for quiz ID
-                        handleGetQuizId(request[1]); // Handle get quiz ID request
-                        break;
-                    default:
-                        out.println("ERROR: Invalid request."); // Error message for invalid requests
-                        break;
+                if (inputLine.startsWith(LOGIN_PREFIX)) {
+                    String[] request = inputLine.substring(LOGIN_PREFIX.length()).split(":");
+                    if (request.length == 2) {
+                        handleLogin(request[0], request[1]); // Handle login request
+                    } else {
+                        out.println("ERROR: Invalid LOGIN request format.");
+                    }
+                } else if (inputLine.startsWith(LOGOUT_PREFIX)) {
+                    handleLogout(inputLine.substring(LOGOUT_PREFIX.length()));
+                } else if (inputLine.startsWith(CREATE_QUIZ_PREFIX)) {
+                    String[] request = inputLine.substring(CREATE_QUIZ_PREFIX.length()).split(":");
+                    if (request.length == 3) {
+                        handleCreateQuiz(request[0], request[1], request[2]);
+                    } else {
+                        out.println("ERROR: Invalid CREATE_QUIZ request format.");
+                    }
+                } else if (inputLine.startsWith(GET_QUIZ_DATA_PREFIX)) {
+                    handleGetQuizData(inputLine.substring(GET_QUIZ_DATA_PREFIX.length()));
+                } else if (inputLine.startsWith(CREATE_ROOM_PREFIX)) {
+                    String[] request = inputLine.substring(CREATE_ROOM_PREFIX.length()).split(":");
+                    if (request.length == 3) {
+                        handleCreateRoom(request[0], request[1], request[2]);
+                    } else {
+                        out.println("ERROR: Invalid CREATE_ROOM request format.");
+                    }
+                } else if (inputLine.startsWith(GET_ACTIVE_ROOMS_PREFIX)) {
+                    handleGetActiveRooms();
+                } else if (inputLine.startsWith(JOIN_ROOM_PREFIX)) {
+                    String[] request = inputLine.substring(JOIN_ROOM_PREFIX.length()).split(":");
+                    if (request.length == 2) {
+                        handleJoinRoom(request[0], request[1]);
+                    } else {
+                        out.println("ERROR: Invalid JOIN_ROOM request format.");
+                    }
+                } else if (inputLine.startsWith(GET_PLAYER_LIST_PREFIX)) {
+                    handleGetPlayerList(inputLine.substring(GET_PLAYER_LIST_PREFIX.length()));
+                } else if (inputLine.startsWith(GET_ROOM_INFO_PREFIX)) {
+                    handleGetRoomInfo(inputLine.substring(GET_ROOM_INFO_PREFIX.length()));
+                } else if (inputLine.startsWith(LEAVE_ROOM_PREFIX)) {
+                    handleLeaveRoom(inputLine.substring(LEAVE_ROOM_PREFIX.length()));
+                } else if (inputLine.startsWith(QUIT_PREFIX)) {
+                    break;
+                } else {
+                    out.println("ERROR: Unknown request.");
                 }
             }
-
         } catch (IOException e) {
-            logger.log(Level.SEVERE, "Error in ClientHandler: ", e);
+            logger.log(Level.SEVERE, "Error handling client connection", e);
         } finally {
             try {
-                if (clientSocket != null) clientSocket.close();
-                if (out != null) out.close();
                 if (in != null) in.close();
+                if (out != null) out.close();
+                if (clientSocket != null) clientSocket.close();
             } catch (IOException e) {
-                logger.log(Level.SEVERE, "Error closing resources: ", e);
+                logger.log(Level.SEVERE, "Error closing client connection", e);
             }
         }
     }
 
     private void handleLogin(String username, String password) {
-        String query = "SELECT user_id FROM users WHERE username = ? AND password = ?";
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+        try {
+            String query = "SELECT user_id FROM users WHERE username = ? AND password = ?";
+            PreparedStatement stmt = connection.prepareStatement(query);
             stmt.setString(1, username);
             stmt.setString(2, password);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    userId = rs.getInt("user_id");
-                    out.println("LOGIN_SUCCESS:" + userId);
-                } else {
-                    out.println("LOGIN_FAILED");
-                }
-            }
-        } catch (SQLException e) {
-            out.println("ERROR: Failed to process login.");
-            logger.log(Level.SEVERE, "SQL error during login: ", e);
-        }
-    }
+            ResultSet rs = stmt.executeQuery();
 
-    private void handleCreateQuiz(String quizName, String userIdStr, String questionsStr) {
-        String query = "INSERT INTO quizzes (quiz_name, created_by) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, quizName);
-            stmt.setInt(2, Integer.parseInt(userIdStr));
-            stmt.executeUpdate();
-
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    int createdQuizId = rs.getInt(1);
-                    out.println("QUIZ_CREATED:" + createdQuizId);
-
-                    insertQuestions(questionsStr, createdQuizId);
-                }
-            }
-        } catch (SQLException e) {
-            out.println("ERROR: Failed to create quiz.");
-            logger.log(Level.SEVERE, "SQL error during quiz creation: ", e);
-        }
-    }
-
-    private void insertQuestions(String questionsStr, int quizId) {
-        String[] questionArray = questionsStr.split(";");
-        String query = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_answer) VALUES (?, ?, ?, ?, ?, ?, ?)";
-
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            for (String questionData : questionArray) {
-                if (!questionData.isEmpty()) {
-                    String[] parts = questionData.split(",");
-
-                    stmt.setInt(1, quizId);
-                    stmt.setString(2, parts[0]);
-                    stmt.setString(3, parts[1]);
-                    stmt.setString(4, parts[2]);
-                    stmt.setString(5, parts[3]);
-                    stmt.setString(6, parts[4]);
-                    stmt.setString(7, parts[5]);
-
-                    stmt.addBatch();
-                }
-            }
-
-            stmt.executeBatch();
-
-        } catch (SQLException e) {
-            logger.log(Level.SEVERE, "ERROR: Failed to insert questions.", e);
-        }
-    }
-
-    private void handleGetQuizzes() {
-        String query = "SELECT quiz_id, quiz_name FROM quizzes";
-        try (PreparedStatement stmt = connection.prepareStatement(query);
-             ResultSet rs = stmt.executeQuery()) {
-
-            StringBuilder quizzes = new StringBuilder();
-
-            while (rs.next()) {
-                quizzes.append(rs.getInt("quiz_id")).append(",").append(rs.getString("quiz_name")).append(";");
-            }
-
-            out.println("QUIZZES:" + quizzes.toString());
-
-        } catch (SQLException e) {
-            out.println("ERROR: Failed to fetch quizzes.");
-            logger.log(Level.SEVERE, "SQL error during fetching quizzes: ", e);
-        }
-    }
-
-    private void handleCreateRoom(String roomName, String quizIdStr, String userIdStr) {
-        String query = "INSERT INTO rooms (room_name, quiz_id, created_by) VALUES (?, ?, ?)";
-
-        try (PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, roomName);
-            stmt.setInt(2, Integer.parseInt(quizIdStr));
-            stmt.setInt(3, Integer.parseInt(userIdStr));
-
-            stmt.executeUpdate();
-
-            try (ResultSet rs = stmt.getGeneratedKeys()) {
-                if (rs.next()) {
-                    int roomId = rs.getInt(1);
-                    RoomManager roomManager = new RoomManager(roomId);
-
-                    QuizServer.addRoomManager(roomId, roomManager);
-
-                    out.println("ROOM_CREATED:" + roomId);
-                }
-            }
-
-        } catch (SQLException e) {
-            out.println("ERROR: Failed to create room.");
-            logger.log(Level.SEVERE,"SQL error during room creation: ",e);
-        }
-    }
-
-    private void handleJoinRoom(String roomIdStr, String userIdStr) {
-        try {
-            this.roomId = Integer.parseInt(roomIdStr);
-            this.userId = Integer.parseInt(userIdStr);
-
-            RoomManager roomManager = QuizServer.getRoomManager(this.roomId);
-
-            if (roomManager != null) {
-                roomManager.addClient(this);
-
-                out.println("JOIN_ROOM:CLIENT_JOINED:" + userId);
-
+            if (rs.next()) {
+                userId = rs.getInt("user_id");
+                this.username = username;
+                out.println(LOGIN_SUCCESS_PREFIX + userId);
             } else {
-                out.println("JOIN_ROOM:ERROR:ROOM_NOT_FOUND");
+                out.println(LOGIN_FAILED_PREFIX);
+            }
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
+
+    private void handleLogout(String username) {
+        out.println("LOGOUT_SUCCESS");
+        try {
+            clientSocket.close();
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Error closing client socket", e);
+        }
+    }
+
+    private void handleCreateQuiz(String quizName, String userId, String questions) {
+        try {
+            String query = "INSERT INTO quizzes (quiz_name, created_by) VALUES (?, ?)";
+            PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
+            stmt.setString(1, quizName);
+            stmt.setInt(2, Integer.parseInt(userId));
+            stmt.executeUpdate();
+
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                int quizId = rs.getInt(1);
+                String[] questionArray = questions.split(";");
+                for (String question : questionArray) {
+                    String[] parts = question.split("\\|");
+                    String questionText = parts[0];
+                    String option1 = parts[1];
+                    String option2 = parts[2];
+                    String option3 = parts[3];
+                    String option4 = parts[4];
+                    String correctAnswer = parts[5];
+
+                    String questionQuery = "INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_answer) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    PreparedStatement questionStmt = connection.prepareStatement(questionQuery);
+                    questionStmt.setInt(1, quizId);
+                    questionStmt.setString(2, questionText);
+                    questionStmt.setString(3, option1);
+                    questionStmt.setString(4, option2);
+                    questionStmt.setString(5, option3);
+                    questionStmt.setString(6, option4);
+                    questionStmt.setString(7, correctAnswer);
+                    questionStmt.executeUpdate();
+                }
+                out.println(QUIZ_CREATED_PREFIX + quizId);
+            } else {
+                out.println("ERROR: Failed to create quiz.");
+            }
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
+
+    private void handleGetQuizData(String roomId) {
+        try {
+            String query = "SELECT q.question_text, q.option1, q.option2, q.option3, q.option4, q.correct_answer FROM questions q JOIN rooms r ON q.quiz_id = r.quiz_id WHERE r.room_id = ?";
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, Integer.parseInt(roomId));
+            ResultSet rs = stmt.executeQuery();
+
+            StringBuilder quizData = new StringBuilder(QUIZ_DATA_SUCCESS_PREFIX);
+            while (rs.next()) {
+                quizData.append(rs.getString("question_text")).append("|")
+                        .append(rs.getString("option1")).append("|")
+                        .append(rs.getString("option2")).append("|")
+                        .append(rs.getString("option3")).append("|")
+                        .append(rs.getString("option4")).append("|")
+                        .append(rs.getString("correct_answer")).append(";");
+            }
+            out.println(quizData.toString());
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
+
+    private void handleCreateRoom(String roomName, String quizId, String userId) {
+        try {
+            String query = "INSERT INTO rooms (room_name, quiz_id, created_by) VALUES (?, ?, ?)";
+            PreparedStatement stmt = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
+            stmt.setString(1, roomName);
+            stmt.setInt(2, Integer.parseInt(quizId));
+            stmt.setInt(3, Integer.parseInt(userId));
+            stmt.executeUpdate();
+
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                int roomId = rs.getInt(1);
+                RoomManager roomManager = new RoomManager(roomId);
+                QuizServer.addRoomManager(roomId, roomManager);
+                out.println(ROOM_CREATED_PREFIX + roomId);
+            } else {
+                out.println("ERROR: Failed to create room.");
+            }
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
+
+    private void handleGetActiveRooms() {
+        out.println(QuizServer.getActiveRooms());
+    }
+
+    private void handleJoinRoom(String roomId, String userId) {
+        RoomManager roomManager = QuizServer.getRoomManager(Integer.parseInt(roomId));
+        if (roomManager != null) {
+            roomManager.addClient(this);
+            out.println(JOIN_ROOM_SUCCESS_PREFIX + roomId);
+            roomManager.broadcastPlayerList();
+        } else {
+            out.println("ERROR: Room not found.");
+        }
+    }
+
+    private void handleGetPlayerList(String roomId) {
+        RoomManager roomManager = QuizServer.getRoomManager(Integer.parseInt(roomId));
+        if (roomManager != null) {
+            roomManager.broadcastPlayerList();
+        } else {
+            out.println("ERROR: Room not found.");
+        }
+    }
+
+    private void handleGetRoomInfo(String roomId) {
+        try {
+            String query = "SELECT r.room_name, q.quiz_name FROM rooms r JOIN quizzes q ON r.quiz_id = q.quiz_id WHERE r.room_id = ?";
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, Integer.parseInt(roomId));
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String roomName = rs.getString("room_name");
+                String quizName = rs.getString("quiz_name");
+                out.println(ROOM_INFO_PREFIX + roomName + "," + quizName);
+            } else {
+                out.println("ERROR: Room not found.");
+            }
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
+
+    private void handleLeaveRoom(String roomIdAndUserId) {
+        try {
+            String[] parts = roomIdAndUserId.split(":");
+            int roomId = Integer.parseInt(parts[0]);
+            int userId = Integer.parseInt(parts[1]);
+            RoomManager roomManager = QuizServer.getRoomManager(roomId);
+            if (roomManager != null) {
+                roomManager.removeClient(this);
+                out.println("LEAVE_ROOM_SUCCESS");
+            } else {
+                out.println("ERROR: Room not found.");
             }
         } catch (NumberFormatException e) {
-            out.println("JOIN_ROOM:ERROR:Invalid room ID format. Room ID must be numeric.");
-            logger.log(Level.WARNING, "Invalid room ID format: " + roomIdStr, e);
-        }
-    }
-
-    private void handleStartQuiz(String quizIdStr) {
-        String query = "SELECT * FROM questions WHERE quiz_id = ?";
-
-        try (PreparedStatement stmt = connection.prepareStatement(query)) {
-            stmt.setInt(1,Integer.parseInt(quizIdStr));
-
-            try(ResultSet rs=stmt.executeQuery()) {
-                StringBuilder questions=new StringBuilder();
-
-                while(rs.next()) {
-                    questions.append(rs.getString("question_text")).append(",")
-                            .append(rs.getString("option1")).append(",")
-                            .append(rs.getString("option2")).append(",")
-                            .append(rs.getString("option3")).append(",")
-                            .append(rs.getString("option4")).append(",")
-                            .append(rs.getString("correct_answer")).append(";");
-                }
-
-                if(questions.length()==0){
-                    out.println("START_QUIZ:ERROR:No questions found for quiz ID "+quizIdStr);
-                } else {
-                    out.println("START_QUIZ:QUESTIONS:"+questions.toString());
-
-                    RoomManager roomManager=QuizServer.getRoomManager(roomId);
-
-                    if(roomManager!=null){
-                        roomManager.broadcast("START_QUIZ:QUESTIONS:"+questions.toString());
-
-                    } else {
-                        out.println("START_QUIZ:ERROR:ROOM_NOT_FOUND");
-
-                    }
-
-                }
-
-            }
-
-        } catch(SQLException e){
-            out.println("ERROR: Failed to fetch quiz questions.");
-            logger.log(Level.SEVERE,"Failed to fetch quiz questions:"+e.getMessage());
-        }
-    }
-
-    private void handleSubmitAnswer(String userIDStr,String quizIDStr,String scoreStr){
-        String query="INSERT INTO results(user_id,quiz_id,score) VALUES(?,?,?)";
-        try(PreparedStatement stmt=connection.prepareStatement(query)){
-            stmt.setInt(1,Integer.parseInt(userIDStr));
-            stmt.setInt(2,Integer.parseInt(quizIDStr));
-            stmt.setInt(3,Integer.parseInt(scoreStr));
-            stmt.executeUpdate();
-            out.println("RESULT_SAVED");
-        } catch(SQLException e){
-            out.println("ERROR: Failed to submit answer.");
-            logger.log(Level.SEVERE,"Failed to submit answer:"+e.getMessage());
-        }
-    }
-
-    public void sendMessage(String message){
-        try{
-            out.println(message);
-            out.flush();
-        } catch(Exception e){
-            System.err.println("Failed to send message to client "+userId+": "+e.getMessage());
-        }
-    }
-
-    public int getUserId(){ return this.userId; }
-
-    private void handleGetQuizId(String roomIDStr){
-        try{
-            int roomID=Integer.parseInt(roomIDStr);
-            String query="SELECT quiz_id FROM rooms WHERE room_id=?";
-
-            try(PreparedStatement stmt=connection.prepareStatement(query)){
-                stmt.setInt(1,roomID);
-                ResultSet rs=stmt.executeQuery();
-
-                if(rs.next()){
-                    int quizID=rs.getInt("quiz_id");
-                    out.println("QUIZ_ID:"+quizID);
-                }else{
-                    out.println("QUIZ_ID:ERROR:Room not found");
-                }
-            }catch(SQLException e){
-                out.println("QUIZ_ID:ERROR:Database error");
-                logger.log(Level.SEVERE,"Database error while fetching Quiz ID:"+e.getMessage());
-            }
-        }catch(NumberFormatException e){
-            out.println("QUIZ_ID:ERROR:Invalid room ID format");
+            out.println("ERROR: Invalid room ID or user ID format.");
         }
     }
 }

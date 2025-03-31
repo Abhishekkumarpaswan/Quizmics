@@ -21,9 +21,9 @@ CREATE TABLE IF NOT EXISTS quizzes (
 
 -- Questions table
 CREATE TABLE IF NOT EXISTS questions (
-                                         question_id INT AUTO_INCREMENT PRIMARY KEY,
-                                         quiz_id INT,
-                                         question_text VARCHAR(255) NOT NULL,
+    question_id INT AUTO_INCREMENT PRIMARY KEY,
+    quiz_id INT,
+    question_text VARCHAR(255) NOT NULL,
     option1 VARCHAR(100) NOT NULL,
     option2 VARCHAR(100) NOT NULL,
     option3 VARCHAR(100) NOT NULL,
@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     FOREIGN KEY (created_by) REFERENCES users(user_id)
     );
 
+
 -- Results table
 CREATE TABLE IF NOT EXISTS results (
                                        result_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,3 +52,4 @@ CREATE TABLE IF NOT EXISTS results (
                                        FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (quiz_id) REFERENCES quizzes(quiz_id)
     );
+
