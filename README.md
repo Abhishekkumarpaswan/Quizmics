@@ -42,6 +42,11 @@ cd OnlineQuizApplication
 
 ### 2. Set Up the Database
 ```
+   Process for sql Workbench
+   Copy the queries from src/main/resources/sql/schema.sql
+   and paste in sql workbench
+   OR
+   Process for sql terminal
    mysql -u root -p
    CREATE DATABASE quiz_db;
    USE quiz_db;
