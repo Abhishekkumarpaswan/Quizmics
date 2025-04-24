@@ -52,7 +52,19 @@ CREATE TABLE IF NOT EXISTS results (
                                        FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (quiz_id) REFERENCES quizzes(quiz_id)
     );
-
+INSERT INTO users (user_id,username, password)
+VALUES
+    (1,'Abhishek', 'password123'),
+    (2,'Praveen', 'securepass'),
+    (3,'Sanjay', 'charlie2024'),
+    (4,'Prakhar', 'davidpass');
+INSERT INTO quizzes (quiz_id,quiz_name, created_by)
+VALUES
+    (1,'C', 1),
+    (2,'Java', 1),
+    (3,'DS', 1),
+    (4,'OS', 1),
+    (5,'DBMS', 1);
 INSERT INTO questions (quiz_id, question_text, option1, option2, option3, option4, correct_answer)
 VALUES
     (1, 'What is the output of the following program?\n#include <stdio.h>\nvoid swap (int *x, int *y) { static int *temp; temp = x; x = y; y = temp; }\nvoid printab () { static int i, a = -3, b = -6; i = 0; while (i <= 4) { if ((i++)%2 == 1) continue; a = a + i; b = b + i; } swap (&a, &b); printf("a = %d, b = %d\\n", a, b); }\nmain() { printab(); printab(); }', 'a=6,b=3 a=12,b=15', 'a=3,b=0 a=12,b=9', 'a=3,b=6 a=3,b=6', 'a=6,b=3 a=15,b=12', 'a=6,b=3 a=12,b=15'),
