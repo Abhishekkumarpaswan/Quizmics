@@ -45,7 +45,7 @@ public class Gameplay extends JFrame implements ActionListener {
 
         setTitle("Quiz Gameplay - Room: " + roomName);
         setSize(1000, 700);
-        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
