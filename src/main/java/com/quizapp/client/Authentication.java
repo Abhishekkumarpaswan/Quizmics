@@ -20,6 +20,7 @@ public class Authentication extends JFrame {
     private JButton registerButton;
     private Socket socket;
     private PrintWriter out;
+    private JFrame registerFrame;
     private BufferedReader in;
     private int userId;
     private boolean authenticated;
@@ -145,7 +146,7 @@ public class Authentication extends JFrame {
     }
 
     private void openRegisterFrame() {
-        JFrame registerFrame = new JFrame("Register - QuizApp");
+        registerFrame = new JFrame("Register - QuizApp");
         registerFrame.setSize(400, 300);
         registerFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         registerFrame.setLocationRelativeTo(this);
@@ -197,10 +198,15 @@ public class Authentication extends JFrame {
             String response = in.readLine();
             if (response.startsWith(REGISTER_SUCCESS_PREFIX)) {
                 JOptionPane.showMessageDialog(this, "Registration Successful!");
-                dispose();
-                if (callback != null) {
-                    callback.onAuthenticationComplete();
-                }
+                registerFrame.dispose();
+                SwingUtilities.invokeLater(() -> {
+                    setVisible(true); // Show the login GUI
+                    usernameField.setText(""); // Clear the username field
+                    passwordField.setText(""); // Clear the password field
+                });
+//                if (callback != null) {
+//                    callback.onAuthenticationComplete();
+//                }
             } else {
                 JOptionPane.showMessageDialog(this, "Registration Failed: " +
                                 (response.startsWith("REGISTER_ERROR:") ? response.substring(15) : response),
@@ -209,26 +215,6 @@ public class Authentication extends JFrame {
             }
         } catch (IOException e) {
             JOptionPane.showMessageDialog(this, "Failed to communicate with server: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void handleLogout() {
-        try {
-            out.println("LOGOUT:" + username);
-            String response = in.readLine();
-            if ("LOGOUT_SUCCESS".equals(response)) {
-                authenticated = false;
-                JOptionPane.showMessageDialog(this, "Logout successful!");
-                dispose();
-                if (callback != null) {
-                    callback.onAuthenticationComplete();
-                }
-            } else {
-                JOptionPane.showMessageDialog(this, "Logout failed!", "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(this, "Failed to communicate with the server: " + e.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
     }

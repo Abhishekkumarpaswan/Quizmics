@@ -36,6 +36,8 @@ public class ClientHandler extends Thread {
     private static final String LOGOUT_PREFIX = "LOGOUT:";
     private static final String PLAYER_LIST_PREFIX = "PLAYER_LIST:";
     private static final String LEAVE_ROOM_PREFIX = "LEAVE_ROOM:";
+    private static final String REGISTER_PREFIX = "REGISTER:";
+    private static final String REGISTER_SUCCESS_PREFIX = "REGISTER_SUCCESS:";
 
     private Socket clientSocket;
     private Connection connection;
@@ -81,7 +83,14 @@ public class ClientHandler extends Thread {
                     } else {
                         out.println("ERROR: Invalid LOGIN request format.");
                     }
-                } else if (inputLine.startsWith(LOGOUT_PREFIX)) {
+                } else if(inputLine.startsWith(REGISTER_PREFIX)){
+                    String[] request = inputLine.substring(REGISTER_PREFIX.length()).split(":");
+                    if (request.length == 2) {
+                        handleRegister(request[0], request[1]); // Handle register request
+                    } else {
+                        out.println("ERROR: Invalid REGISTER request format.");
+                    }
+                }else if (inputLine.startsWith(LOGOUT_PREFIX)) {
                     handleLogout(inputLine.substring(LOGOUT_PREFIX.length()));
                 } else if (inputLine.startsWith(CREATE_QUIZ_PREFIX)) {
                     String[] request = inputLine.substring(CREATE_QUIZ_PREFIX.length()).split(":");
@@ -153,6 +162,19 @@ public class ClientHandler extends Thread {
         }
     }
 
+    private void handleRegister(String username, String password) {
+        try {
+            String query = "INSERT INTO users (username, password) VALUES (?, ?)";
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            stmt.executeUpdate();
+
+            out.println(REGISTER_SUCCESS_PREFIX + username);
+        } catch (SQLException e) {
+            out.println("ERROR: " + e.getMessage());
+        }
+    }
     private void handleLogout(String username) {
         out.println("LOGOUT_SUCCESS");
         try {

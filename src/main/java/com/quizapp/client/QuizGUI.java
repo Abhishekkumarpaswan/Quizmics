@@ -186,17 +186,6 @@ public class QuizGUI extends JFrame {
         }
     }
 
-    private void handleBackToQuizGUI() {
-        stopRoomUpdates();
-        setVisible(false); // Hide the window instead of disposing it
-        SwingUtilities.invokeLater(() -> {
-            QuizGUI quizGUI = new QuizGUI(userId, username);
-            quizGUI.setStreams(out, in);
-            quizGUI.enableQuizFeatures(); // Re-enable buttons
-            quizGUI.setVisible(true);
-        });
-    }
-
     public JButton getCreateQuizButton() {
         return createQuizButton;
     }
